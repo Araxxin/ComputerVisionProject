@@ -1,0 +1,59 @@
+# data_collection_and_training.py
+
+import os
+import cv2
+import numpy as np
+import tensorflow
+from sklearn.model_selection import train_test_split
+from keras.utils import to_categorical
+from keras.models import Sequential, load_model
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+
+# Configuration
+DATA_DIR = './data'
+IMG_SIZE = 64
+NUM_CLASSES = 25
+EPOCHS = 10
+BATCH_SIZE = 32
+
+# Step 1: Load and preprocess the dataset
+data = []
+labels = []
+
+for label in range(NUM_CLASSES):
+    class_dir = os.path.join(DATA_DIR, str(label))
+    for img_name in os.listdir(class_dir):
+        img_path = os.path.join(class_dir, img_name)
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+        data.append(img)
+        labels.append(label)
+
+data = np.array(data, dtype=np.float32) / 255.0 # Normalize
+labels = to_categorical(labels, num_classes=NUM_CLASSES)
+
+X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42)
+
+# Step 2: Build the CNN model
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+    MaxPooling2D(2, 2),
+    
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    
+    Flatten(),
+    Dropout(0.5),
+    Dense(128, activation='relu'),
+    Dense(NUM_CLASSES, activation='softmax')
+])
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.summary()
+
+# Step 3: Train the model
+model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=EPOCHS, batch_size=BATCH_SIZE)
+
+# Step 4: Save the model
+model.save('cnn_asl_model.h5')
